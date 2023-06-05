@@ -621,11 +621,12 @@ exports.outbound_increment = async function (next, hmail) {
             let currentDelayInSeconds = currentMessageTime.getSeconds() - new Date(Date.parse(lastSentMessageForDomain)).getSeconds();
 
             this.loginfo("rate limit plugin: for domain " + outDom + " requestedDelayInSeconds " + requestedDelayInSeconds +
-                " currentDelayInSeconds " + currentDelayInSeconds);
+                " currentDelayInSeconds " + currentDelayInSeconds + " currentMessageTime " + currentMessageTime);
 
             if (currentDelayInSeconds > requestedDelayInSeconds) {
                 await this.db.hSet(outKey, 'LAST_MESSAGE_TIME', currentMessageTime.toString());
                 this.db.expire(outKey, 300);  // 5 min expire
+                this.loginfo("rate limit plugin: for domain " + outDom + " will be sent immediately");
                 return next();
             } else {
                 const delay = requestedDelayInSeconds - currentDelayInSeconds;
