@@ -602,7 +602,7 @@ exports.outbound_increment = async function (next, hmail) {
     try {
 
         if (!this.cfg.outbound[outDom]) return next();
-        const rate = parseInt(this.cfg.outbound[outDom], 10);
+        const rate = parseFloat(this.cfg.outbound[outDom]);
         if (!rate) return next();
 
         this.loginfo("rate limit plugin: for domain " + outDom + " defined rate " + rate);
@@ -621,7 +621,7 @@ exports.outbound_increment = async function (next, hmail) {
             let currentDelayInSeconds = currentMessageTime.getSeconds() - new Date(Date.parse(lastSentMessageForDomain)).getSeconds();
 
             this.loginfo("rate limit plugin: for domain " + outDom + " requestedDelayInSeconds " + requestedDelayInSeconds +
-                " " + currentDelayInSeconds + " currentDelayInSeconds ");
+                " currentDelayInSeconds " + currentDelayInSeconds);
 
             if (currentDelayInSeconds > requestedDelayInSeconds) {
                 await this.db.hSet(outKey, 'LAST_MESSAGE_TIME', currentMessageTime.toString());
