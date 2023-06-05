@@ -597,11 +597,11 @@ exports.outbound_increment = async function (next, hmail) {
     const outDom = getOutDom(hmail);
     const outKey = getOutKey(outDom);
 
-    this.loginfo("rate limit plugin: " + outDom + " " + outKey);
-
     try {
 
         if (!this.cfg.outbound[outDom]) return next();
+
+        this.loginfo("rate limit plugin: " + outDom + " " + outKey + "rate: " + this.cfg.outbound[outDom]);
         const rate = parseFloat(this.cfg.outbound[outDom]);
         if (!rate) return next();
 
@@ -634,7 +634,7 @@ exports.outbound_increment = async function (next, hmail) {
             }
         }
     } catch (err) {
-        this.logerror(`outbound_increment: ${err}`);
+        his.loginfo("rate limit plugin:" + err);
         next(); // just deliver
     }
 }
