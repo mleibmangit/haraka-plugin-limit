@@ -56,14 +56,14 @@ exports.register = function () {
     if (this.cfg.outbound.enabled) {
         needs_redis++
         this.register_hook('send_email', 'outbound_increment');
-        this.register_hook('delivered',  'outbound_decrement');
+        /*this.register_hook('delivered',  'outbound_decrement');
         this.register_hook('deferred',   'outbound_decrement');
-        this.register_hook('bounce',     'outbound_decrement');
+        this.register_hook('bounce',     'outbound_decrement');*/
     }
 
     if (needs_redis) {
-        this.register_hook('init_master',  'init_redis_plugin');
-        this.register_hook('init_child',   'init_redis_plugin');
+        this.register_hook('init_master', 'init_redis_plugin');
+        this.register_hook('init_child', 'init_redis_plugin');
     }
 }
 
@@ -597,22 +597,43 @@ exports.outbound_increment = async function (next, hmail) {
     const outDom = getOutDom(hmail);
     const outKey = getOutKey(outDom);
 
-    try {
-        let count = await this.db.hIncrBy(outKey, 'TOTAL', 1)
+    this.loginfo("rate limit plugin: " + outDom + " " + outKey);
 
-        this.db.expire(outKey, 300);  // 5 min expire
+    try {
 
         if (!this.cfg.outbound[outDom]) return next();
-        const limit = parseInt(this.cfg.outbound[outDom], 10);
-        if (!limit) return next();
+        const rate = parseInt(this.cfg.outbound[outDom], 10);
+        if (!rate) return next();
 
-        count = parseInt(count, 10);
-        if (count <= limit) return next();
+        this.loginfo("rate limit plugin: for domain " + outDom + " defined rate " + rate);
 
-        const delay = this.cfg.outbound.delay || 30;
-        next(constants.delay, delay);
-    }
-    catch (err) {
+        let lastSentMessageForDomain = await this.db.hGet(outKey, 'LAST_MESSAGE_TIME');
+        this.loginfo("rate limit plugin: for domain " + outDom + " lastSentMessageForDomain " + lastSentMessageForDomain);
+        let currentMessageTime = new Date();
+
+        if (!lastSentMessageForDomain) {
+            await this.db.hSet(outKey, 'LAST_MESSAGE_TIME', currentMessageTime.toString());
+            this.db.expire(outKey, 300);  // 5 min expire
+            return next();
+        } else {
+
+            let requestedDelayInSeconds = 1 / rate;
+            let currentDelayInSeconds = currentMessageTime.getSeconds() - Date.parse(lastSentMessageForDomain).getSeconds();
+
+            this.loginfo("rate limit plugin: for domain " + outDom + " requestedDelayInSeconds " + requestedDelayInSeconds +
+                " " + currentDelayInSeconds + " currentDelayInSeconds ");
+
+            if (currentDelayInSeconds > requestedDelayInSeconds) {
+                await this.db.hSet(outKey, 'LAST_MESSAGE_TIME', currentMessageTime.toString());
+                this.db.expire(outKey, 300);  // 5 min expire
+                return next();
+            } else {
+                const delay = requestedDelayInSeconds - currentDelayInSeconds;
+                this.loginfo("rate limit plugin: for domain " + outDom + " will be delayed for " + delay);
+                next(constants.delay, delay);
+            }
+        }
+    } catch (err) {
         this.logerror(`outbound_increment: ${err}`);
         next(); // just deliver
     }
