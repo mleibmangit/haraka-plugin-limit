@@ -657,7 +657,7 @@ exports.outbound_increment = async function (next, hmail) {
             this.loginfo("rate limit plugin: for domain " + outDom + " requestedDelayInSeconds " + requestedDelayInSeconds +
                 " currentDelayInSeconds " + currentDelayInSeconds + " currentMessageTime " + currentMessageTime);
 
-            if (currentDelayInSeconds > requestedDelayInSeconds) {
+            if (currentDelayInSeconds >= requestedDelayInSeconds) {
                 updateLastMessageTime(this.db, outKey, currentMessageTime, rate);
                 this.loginfo("rate limit plugin: for domain " + outDom + " will be sent immediately");
                 return next();
