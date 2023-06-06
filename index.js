@@ -65,8 +65,8 @@ exports.register = function () {
 
         //var redisA = new Client({host: "redistest"});
         const redisA = new Client({
-            host: this.cfg.redis["host"],
-            port: this.cfg.redis["port"]
+            host: this.cfg.redis.host,
+            port: this.cfg.redis.port
         });
 
         redlock = new Redlock(
