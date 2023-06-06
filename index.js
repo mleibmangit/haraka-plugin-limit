@@ -668,7 +668,7 @@ exports.outbound_increment = async function (next, hmail) {
             }
         }
     } catch (err) {
-        his.loginfo("rate limit plugin: " + err);
+        this.loginfo("rate limit plugin: " + err);
         next(); // just deliver
     } finally {
         await lock.release();
