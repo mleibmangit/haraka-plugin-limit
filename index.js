@@ -63,11 +63,11 @@ exports.register = function () {
         this.register_hook('deferred',   'outbound_decrement');
         this.register_hook('bounce',     'outbound_decrement');*/
 
-        //var redisA = new Client({host: "redistest"});
-        const redisA = new Client({
+        var redisA = new Client({host: "redistest"});
+        /*const redisA = new Client({
             host: this.cfg.redis.host,
             port: this.cfg.redis.port
-        });
+        });*/
 
         redlock = new Redlock(
             // You should have one client for each independent redis node
