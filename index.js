@@ -647,7 +647,8 @@ exports.outbound_increment = async function (next, hmail) {
         let currentMessageTime = new Date();
 
         if (!lastSentMessageForDomain) {
-            updateLastMessageTime(this.db, outKey, currentMessageTime, rate);
+            await this.db.hSet(outKey, 'LAST_MESSAGE_TIME', currentMessageTime.toString());
+            this.db.expire(outKey, 1 / rate * 10);
             return next();
         } else {
 
@@ -658,7 +659,8 @@ exports.outbound_increment = async function (next, hmail) {
                 " currentDelayInSeconds " + currentDelayInSeconds + " currentMessageTime " + currentMessageTime);
 
             if (currentDelayInSeconds > requestedDelayInSeconds) {
-                updateLastMessageTime(this.db, outKey, currentMessageTime, rate);
+                await this.db.hSet(outKey, 'LAST_MESSAGE_TIME', currentMessageTime.toString());
+                this.db.expire(outKey, 1 / rate * 10);
                 this.loginfo("rate limit plugin: for domain " + outDom + " will be sent immediately");
                 return next();
             } else {
