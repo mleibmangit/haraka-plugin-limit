@@ -4,6 +4,7 @@ const constants = require('haraka-constants');
 const ipaddr = require('ipaddr.js');
 const Client = require("ioredis");
 const Redlock = require("redlock");
+var redlock;
 
 exports.register = function () {
     this.inherits('haraka-plugin-redis');
@@ -62,9 +63,10 @@ exports.register = function () {
         this.register_hook('deferred',   'outbound_decrement');
         this.register_hook('bounce',     'outbound_decrement');*/
 
-        const redisA = new Client({host: "redis-limit-haraka-service.keeper-qacharlie"});
+        var redisA = new Client({host: "redistest"});
+        //const redisA = new Client({host: "redis-limit-haraka-service.keeper-qacharlie"});
 
-        const redlock = new Redlock(
+        redlock = new Redlock(
             // You should have one client for each independent redis node
             // or cluster.
             [redisA],
