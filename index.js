@@ -1,7 +1,9 @@
 'use strict';
 
 const constants = require('haraka-constants');
-const ipaddr    = require('ipaddr.js');
+const ipaddr = require('ipaddr.js');
+const Client = require("ioredis");
+const Redlock = require("redlock");
 
 exports.register = function () {
     this.inherits('haraka-plugin-redis');
@@ -59,6 +61,35 @@ exports.register = function () {
         /*this.register_hook('delivered',  'outbound_decrement');
         this.register_hook('deferred',   'outbound_decrement');
         this.register_hook('bounce',     'outbound_decrement');*/
+
+        const redisA = new Client({host: "redis-limit-haraka-service.keeper-qacharlie"});
+
+        const redlock = new Redlock(
+            // You should have one client for each independent redis node
+            // or cluster.
+            [redisA],
+            {
+                // The expected clock drift; for more details see:
+                // http://redis.io/topics/distlock
+                driftFactor: 0.01, // multiplied by lock ttl to determine drift time
+
+                // The max number of times Redlock will attempt to lock a resource
+                // before erroring.
+                retryCount: 10,
+
+                // the time in ms between attempts
+                retryDelay: 200, // time in ms
+
+                // the max time in ms randomly added to retries
+                // to improve performance under high contention
+                // see https://www.awsarchitectureblog.com/2015/03/backoff.html
+                retryJitter: 200, // time in ms
+
+                // The minimum remaining time on a lock before an extension is automatically
+                // attempted with the `using` API.
+                automaticExtensionThreshold: 500, // time in ms
+            }
+        );
     }
 
     if (needs_redis) {
@@ -592,16 +623,18 @@ function getOutKey (domain) {
 }
 
 exports.outbound_increment = async function (next, hmail) {
+
     if (!this.db) return next();
 
     const outDom = getOutDom(hmail);
     const outKey = getOutKey(outDom);
 
+    let lock = await redlock.acquire([outKey], 5000);
+
     try {
 
         if (!this.cfg.outbound[outDom]) return next();
 
-        this.loginfo("rate limit plugin: " + outDom + " " + outKey + "rate: " + this.cfg.outbound[outDom]);
         const rate = parseFloat(this.cfg.outbound[outDom]);
         if (!rate) return next();
 
@@ -612,8 +645,7 @@ exports.outbound_increment = async function (next, hmail) {
         let currentMessageTime = new Date();
 
         if (!lastSentMessageForDomain) {
-            await this.db.hSet(outKey, 'LAST_MESSAGE_TIME', currentMessageTime.toString());
-            this.db.expire(outKey, 300);  // 5 min expire
+            updateLastMessageTime(outKey, currentMessageTime, rate);
             return next();
         } else {
 
@@ -624,8 +656,7 @@ exports.outbound_increment = async function (next, hmail) {
                 " currentDelayInSeconds " + currentDelayInSeconds + " currentMessageTime " + currentMessageTime);
 
             if (currentDelayInSeconds > requestedDelayInSeconds) {
-                await this.db.hSet(outKey, 'LAST_MESSAGE_TIME', currentMessageTime.toString());
-                this.db.expire(outKey, 300);  // 5 min expire
+                updateLastMessageTime(outKey, currentMessageTime, rate);
                 this.loginfo("rate limit plugin: for domain " + outDom + " will be sent immediately");
                 return next();
             } else {
@@ -635,9 +666,16 @@ exports.outbound_increment = async function (next, hmail) {
             }
         }
     } catch (err) {
-        his.loginfo("rate limit plugin:" + err);
+        his.loginfo("rate limit plugin: " + err);
         next(); // just deliver
+    } finally {
+        await lock.release();
     }
+}
+
+async function updateLastMessageTime(outKey, currentMessageTime, rate) {
+    await this.db.hSet(outKey, 'LAST_MESSAGE_TIME', currentMessageTime.toString());
+    this.db.expire(outKey, 1 / rate * 10);
 }
 
 exports.outbound_decrement = function (next, hmail) {
