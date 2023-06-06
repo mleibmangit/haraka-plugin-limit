@@ -655,7 +655,7 @@ exports.outbound_increment = async function (next, hmail) {
         } else {
 
             let requestedDelayInSeconds = 1 / rate;
-            let currentDelayInSeconds = Math.ceil((currentMessageTime.getTime() - new Date(Date.parse(lastSentMessageForDomain)).getTime()) / 1000);
+            let currentDelayInSeconds = Math.floor((currentMessageTime.getTime() - new Date(Date.parse(lastSentMessageForDomain)).getTime()) / 1000);
 
             this.loginfo("rate limit plugin: for domain " + outDom + " requestedDelayInSeconds " + requestedDelayInSeconds +
                 " currentDelayInSeconds " + currentDelayInSeconds + " currentMessageTime " + currentMessageTime);
