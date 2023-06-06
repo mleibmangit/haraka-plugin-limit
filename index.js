@@ -3,7 +3,7 @@
 const constants = require('haraka-constants');
 const ipaddr = require('ipaddr.js');
 const Client = require("ioredis");
-const Redlock = require("redlock");
+const {default: Redlock} = require("redlock");
 var redlock;
 
 exports.register = function () {
