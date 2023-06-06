@@ -643,7 +643,7 @@ exports.outbound_increment = async function (next, hmail) {
         const rate = parseFloat(this.cfg.outbound[outDom]);
         if (!rate) return next();
 
-        this.loginfo("rate limit plugin: for domain " + outDom + " defined rate " + rate);
+        this.loginfo("rate limit plugin: for domain " + outDom + " defined rate " + rate + " file " + hmail.filename);
 
         let lastSentMessageForDomain = await this.db.hGet(outKey, 'LAST_MESSAGE_TIME');
         this.loginfo("rate limit plugin: for domain " + outDom + " lastSentMessageForDomain " + lastSentMessageForDomain);
